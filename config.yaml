@@ -88,6 +88,17 @@ blogs:
 
 use_google_trends: false
 twitter_scan:
+
+# New knobs
+recent_days: 7             # keep items from last 7 days only
+min_topic_mentions: 2      # require at least 2 distinct items per topic (ongoing discussion)
+min_context_score: 3       # slightly stricter intl-law signal (was 2)
+source_blocklist:          # optional: skip noisy sources (add more as you discover)
+  - "facebook.com"
+  - "x.com"
+  - "twitter.com"
+  - "t.me"
+
   enabled: false
 enrich_people: true
 report_top_n: 80
