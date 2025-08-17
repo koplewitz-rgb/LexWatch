@@ -97,6 +97,42 @@ sources:
   - https://news.google.com/rss/search?q=site:icc-cpi.int%20Israel
   - https://news.google.com/rss/search?q=site:uncitral.un.org%20Israel
   - https://news.google.com/rss/search?q=site:icsid.worldbank.org%20Israel
+  # --- Signal knobs (daily defaults) ---
+recent_days: 7
+min_topic_mentions: 2
+min_context_score: 2   # was 3; slightly looser so real items show up
+report_top_n: 80
+
+# Add more news queries (helps coverage)
+sources:
+  - https://news.google.com/rss/search?q=%22international%20law%22%20Israel
+  - https://news.google.com/rss/search?q=%22international%20humanitarian%20law%22%20Israel
+  - https://news.google.com/rss/search?q=ICJ%20Israel
+  - https://news.google.com/rss/search?q=%22ICC%20Prosecutor%22%20Israel
+  - https://news.google.com/rss/search?q=UNCLOS%20Israel
+  - https://news.google.com/rss/search?q=EEZ%20Israel
+  - https://news.google.com/rss/search?q=%22innocent%20passage%22%20Israel
+  - https://news.google.com/rss/search?q=%22genocide%20convention%22%20Israel
+  - https://news.google.com/rss/search?q=%22investment%20arbitration%22%20Israel
+  - https://news.google.com/rss/search?q=settlements%20international%20law%20Israel
+  - https://news.google.com/rss/search?q=gaza%20international%20law
+  - https://news.google.com/rss/search?q=west%20bank%20international%20law
+  - https://news.google.com/rss/search?q=site:icj-cij.org%20Israel
+  - https://news.google.com/rss/search?q=site:icc-cpi.int%20Israel
+  - https://news.google.com/rss/search?q=site:uncitral.un.org%20Israel
+  - https://news.google.com/rss/search?q=site:icsid.worldbank.org%20Israel
+
+# Make sure blog feeds are correct & alive
+blogs:
+  - https://www.ejiltalk.org/feed/
+  - https://opiniojuris.org/feed/
+  - https://www.justsecurity.org/feed/
+  - https://www.lawfaremedia.org/rss.xml
+  - https://blogs.icrc.org/law-and-policy/feed/
+  - https://lieber.westpoint.edu/feed/
+  - https://asymmetrichaircut.com/feed/         # Asymmetrical Haircut
+  - https://www.armedgroups-internationallaw.org/feed/
+
 
 # Blogs / analysis feeds
 blogs:
