@@ -1,46 +1,69 @@
-# --- LexWatch Pages Configuration (fixed) ---
+# ===== LexWatch configuration =====
 
+# Keep only recent items
+recent_days: 7
+
+# Require ongoing discussion (N or more independent mentions per topic)
+min_topic_mentions: 2
+
+# Stronger international-law signal (higher = stricter)
+min_context_score: 3
+
+# Limit total items shown
+report_top_n: 80
+
+# Optional: skip noisy domains (add more if needed)
+source_blocklist:
+  - facebook.com
+  - x.com
+  - twitter.com
+  - t.me
+
+# Must contain Israel signal (multi-language + geography)
 israel_terms:
   - Israel
   - Israeli
-  - "State of Israel"
+  - State of Israel
   - ישראל
   - ישראלי
-  - "מדינת ישראל"
+  - מדינת ישראל
   - إسرائيل
   - إسرائيلي
-  - "دولة إسرائيل"
+  - دولة إسرائيل
   - West Bank
   - Gaza
   - Jerusalem
   - Occupied Palestinian Territories
   - OPT
 
+# Primary tracked terms
 track_terms:
   - ICJ
-  - "ICC Prosecutor"
+  - ICC Prosecutor
   - UNCLOS
-  - "Israel settlements"
-  - "investment arbitration"
+  - Israel settlements
+  - investment arbitration
   - EEZ
-  - "innocent passage"
-  - "genocide convention"
+  - innocent passage
+  - genocide convention
 
+# AI + international law terms
 ai_terms:
-  - "artificial intelligence"
+  - artificial intelligence
   - AI
-  - "autonomous weapons"
+  - autonomous weapons
   - LAWS
-  - "AI governance"
-  - "Council of Europe AI Convention"
-  - "Article 36 weapons review"
-  - "cyber norms"
-  - "IHL and AI"
-  - "IHRL and AI"
+  - AI governance
+  - Council of Europe AI Convention
+  - Article 36 weapons review
+  - cyber norms
+  - IHL and AI
+  - IHRL and AI
 
+# Context words that indicate public international law discussion
 context_terms:
-  - "international law"
-  - "public international law"
+  - international law
+  - public international law
   - IHL
   - IHRL
   - treaty
@@ -50,55 +73,44 @@ context_terms:
   - ICC
   - UNCLOS
   - EEZ
-  - "law of the sea"
-  - "genocide convention"
-  - "state responsibility"
+  - law of the sea
+  - genocide convention
+  - state responsibility
   - immunities
-  - "erga omnes"
+  - erga omnes
   - arbitration
-  - "investment arbitration"
+  - investment arbitration
   - ICSID
   - UNCITRAL
 
-min_context_score: 2
-
+# News searches (RSS via Google News + key institutions)
 sources:
-  - "https://news.google.com/rss/search?q=%22international%20law%22%20Israel"
-  - "https://news.google.com/rss/search?q=ICJ%20Israel"
-  - "https://news.google.com/rss/search?q=%22ICC%20Prosecutor%22%20Israel"
-  - "https://news.google.com/rss/search?q=UNCLOS%20Israel"
-  - "https://news.google.com/rss/search?q=EEZ%20Israel"
-  - "https://news.google.com/rss/search?q=%22innocent%20passage%22%20Israel"
-  - "https://news.google.com/rss/search?q=%22genocide%20convention%22%20Israel"
-  - "https://news.google.com/rss/search?q=%22investment%20arbitration%22%20Israel"
-  - "https://news.google.com/rss/search?q=site:icj-cij.org%20Israel"
-  - "https://news.google.com/rss/search?q=site:icc-cpi.int%20Israel"
-  - "https://news.google.com/rss/search?q=site:uncitral.un.org%20Israel"
-  - "https://news.google.com/rss/search?q=site:icsid.worldbank.org%20Israel"
+  - https://news.google.com/rss/search?q=%22international%20law%22%20Israel
+  - https://news.google.com/rss/search?q=ICJ%20Israel
+  - https://news.google.com/rss/search?q=%22ICC%20Prosecutor%22%20Israel
+  - https://news.google.com/rss/search?q=UNCLOS%20Israel
+  - https://news.google.com/rss/search?q=EEZ%20Israel
+  - https://news.google.com/rss/search?q=%22innocent%20passage%22%20Israel
+  - https://news.google.com/rss/search?q=%22genocide%20convention%22%20Israel
+  - https://news.google.com/rss/search?q=%22investment%20arbitration%22%20Israel
+  - https://news.google.com/rss/search?q=site:icj-cij.org%20Israel
+  - https://news.google.com/rss/search?q=site:icc-cpi.int%20Israel
+  - https://news.google.com/rss/search?q=site:uncitral.un.org%20Israel
+  - https://news.google.com/rss/search?q=site:icsid.worldbank.org%20Israel
 
+# Blogs / analysis feeds
 blogs:
-  - "https://www.ejiltalk.org/feed/"
-  - "https://opiniojuris.org/feed/"
-  - "https://www.justsecurity.org/feed/"
-  - "https://www.lawfaremedia.org/rss.xml"
-  - "https://blogs.icrc.org/law-and-policy/feed/"
-  - "https://lieber.westpoint.edu/feed/"
-  - "https://asymmetrichaircut.com/feed/"
-  - "https://www.armedgroups-internationallaw.org/feed/"
+  - https://www.ejiltalk.org/feed/
+  - https://opiniojuris.org/feed/
+  - https://www.justsecurity.org/feed/
+  - https://www.lawfaremedia.org/rss.xml
+  - https://blogs.icrc.org/law-and-policy/feed/
+  - https://lieber.westpoint.edu/feed/
+  - https://asymmetrichaircut.com/feed/
+  - https://www.armedgroups-internationallaw.org/feed/
 
+# Optional enrichments
+enrich_people: true
 use_google_trends: false
 twitter_scan:
-
-# New knobs
-recent_days: 7             # keep items from last 7 days only
-min_topic_mentions: 2      # require at least 2 distinct items per topic (ongoing discussion)
-min_context_score: 3       # slightly stricter intl-law signal (was 2)
-source_blocklist:          # optional: skip noisy sources (add more as you discover)
-  - "facebook.com"
-  - "x.com"
-  - "twitter.com"
-  - "t.me"
-
   enabled: false
-enrich_people: true
-report_top_n: 80
