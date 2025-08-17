@@ -2,15 +2,19 @@ name: Build & Publish LexWatch
 
 on:
   push:
-    branches: ["main"]       # run when you commit
+    branches: ["main"]        # run on any change
   schedule:
-    - cron: "0 9 * * *"      # daily at 09:00 UTC (~12:00 Israel time)
-  workflow_dispatch:          # enables the green "Run workflow" button
+    - cron: "0 9 * * *"       # daily at 09:00 UTC
+  workflow_dispatch:           # enables the "Run workflow" button
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -25,11 +29,11 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
 
-      # build.py writes to public/index.html
+      # build.py writes to public/index.html (keep your build.py as-is)
       - run: python build.py
 
-      # Use the NEW v4 artifact action:
-      - uses: actions/upload-pages-artifact@v4
+      # Use the latest supported action for Pages artifacts:
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: public
 
@@ -38,7 +42,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
