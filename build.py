@@ -1,12 +1,45 @@
 import os, re, yaml, requests, feedparser
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil import parser as dateparser
 from jinja2 import Template
+
+# ------------ helpers ------------
+STOP = set(("the of a an to in for and or on at from with by over under about into after before as via israel israeli jerusalem gaza west bank"))
 
 def read_yaml(path):
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 UA = {"User-Agent": "LexWatchPages/1.0 (+https://github.com/)"}
+
+def parse_published(e):
+    dt = None
+    if getattr(e, "published_parsed", None):
+        try:
+            dt = datetime(*e.published_parsed[:6])
+        except Exception:
+            dt = None
+    if not dt:
+        try:
+            dt = dateparser.parse(getattr(e, "published", "") or getattr(e, "updated", ""))
+        except Exception:
+            dt = None
+    return dt
+
+def domain_of(url):
+    try:
+        return requests.utils.urlparse(url).netloc.lower()
+    except Exception:
+        return ""
+
+def normalize_title(t):
+    toks = re.findall(r"[A-Za-z]{3,}", (t or ""))
+    toks = [w.lower() for w in toks if w.lower() not in STOP]
+    return " ".join(toks[:10]) or (t or "").lower()
+
+def topic_key(item):
+    base = normalize_title(item.get("title",""))
+    return f"{item.get('bucket','Other')}|{base[:80]}"
 
 def fetch_rss(url, timeout=(10,15)):
     try:
@@ -15,11 +48,14 @@ def fetch_rss(url, timeout=(10,15)):
         p = feedparser.parse(r.content)
         out = []
         for e in p.entries:
+            pd = parse_published(e)
             out.append({
                 "title": getattr(e, "title", ""),
                 "link": getattr(e, "link", ""),
                 "summary": getattr(e, "summary", ""),
                 "published": getattr(e, "published", ""),
+                "published_dt": pd.isoformat() if pd else "",
+                "domain": domain_of(getattr(e, "link", "")),
                 "source": url,
             })
         return out
@@ -29,6 +65,8 @@ def fetch_rss(url, timeout=(10,15)):
             "link": "",
             "summary": str(ex),
             "published": "",
+            "published_dt": "",
+            "domain": "",
             "source": url
         }]
 
@@ -77,7 +115,7 @@ def wiki_summary(name):
     except Exception:
         return None
 
-def apply_filters(items, track_terms, context_terms, israel_terms, min_ctx, top_n):
+def apply_filters(items, track_terms, context_terms, israel_terms, min_ctx):
     out = []
     for it in items:
         text = f"{it.get('title','')} {it.get('summary','')}"
@@ -89,17 +127,21 @@ def apply_filters(items, track_terms, context_terms, israel_terms, min_ctx, top_
             continue
         it["bucket"] = assign_bucket(it)
         out.append(it)
-    return out[:top_n]
+    return out
 
+# ------------ main ------------
 def main():
     cfg = read_yaml("config.yaml")
     sources = list(set(cfg.get("sources", [])))
     blogs = list(set(cfg.get("blogs", [])))
-    track_terms = list(set(cfg.get("track_terms", []) + cfg.get("ai_terms", [])))
+    track_terms   = list(set(cfg.get("track_terms", []) + cfg.get("ai_terms", [])))
     context_terms = cfg.get("context_terms", [])
-    israel_terms = cfg.get("israel_terms", ["Israel"])
-    min_ctx = int(cfg.get("min_context_score", 1))
-    top_n = int(cfg.get("report_top_n", 80))
+    israel_terms  = cfg.get("israel_terms", ["Israel"])
+    min_ctx       = int(cfg.get("min_context_score", 3))  # STRONGER default
+    top_n         = int(cfg.get("report_top_n", 80))
+    recent_days   = int(cfg.get("recent_days", 7))
+    min_topic     = int(cfg.get("min_topic_mentions", 2))
+    block         = set((d.strip().lower() for d in cfg.get("source_blocklist", [])))
 
     feed_items, blog_items = [], []
     for u in sources:
@@ -107,13 +149,58 @@ def main():
     for b in blogs:
         blog_items += fetch_rss(b)
 
-    feed_f = apply_filters(feed_items, track_terms, context_terms, israel_terms, min_ctx, top_n)
-    blog_f = apply_filters(blog_items, track_terms, context_terms, israel_terms, min_ctx, top_n)
+    # Initial filters
+    feed_f = apply_filters(feed_items, track_terms, context_terms, israel_terms, min_ctx)
+    blog_f = apply_filters(blog_items, track_terms, context_terms, israel_terms, min_ctx)
 
-    # People to Watch (names from titles)
+    # Recent only (≤ recent_days)
+    cutoff = datetime.utcnow() - timedelta(days=recent_days)
+    def is_recent(it):
+        try:
+            if it.get("published_dt"):
+                return dateparser.parse(it["published_dt"]) >= cutoff
+            return True  # allow undated
+        except Exception:
+            return True
+
+    feed_f = [it for it in feed_f if is_recent(it)]
+    blog_f = [it for it in blog_f if is_recent(it)]
+
+    # Block noisy domains
+    if block:
+        feed_f = [it for it in feed_f if it.get("domain","") not in block]
+        blog_f = [it for it in blog_f if it.get("domain","") not in block]
+
+    # Dedupe (by normalized title + domain)
+    seen = set()
+    def dedupe(items):
+        out = []
+        for it in items:
+            key = (normalize_title(it.get("title","")), it.get("domain",""))
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(it)
+        return out
+
+    feed_f = dedupe(feed_f)
+    blog_f = dedupe(blog_f)
+
+    # Ongoing discussions: require >= min_topic per topic_key across feeds+blogs
+    all_items = feed_f + blog_f
+    for it in all_items:
+        it["bucket"] = assign_bucket(it)
+    counts = {}
+    for it in all_items:
+        k = topic_key(it)
+        counts[k] = counts.get(k, 0) + 1
+    ongoing = [it for it in all_items if counts[topic_key(it)] >= min_topic]
+    final_items = ongoing[: top_n]
+
+    # People to Watch (from final items)
     names = set()
     cap = re.compile(r"\b([A-Z][a-z]+(?:\s[A-Z][a-z]+){1,2})\b")
-    for it in (feed_f + blog_f):
+    for it in final_items:
         for m in cap.findall(it.get("title","")):
             names.add(m)
     bios = []
@@ -122,12 +209,25 @@ def main():
         if s and (len(s["summary"])>50 or len(s["description"])>0):
             bios.append(s)
 
-    # Buckets
+    # Group by bucket
     by_bucket = {}
-    for it in (feed_f + blog_f):
+    for it in final_items:
         by_bucket.setdefault(it["bucket"], []).append(it)
 
-    template = Template("""<!doctype html><html><head>
+    # Hot Topics list
+    topic_counts = {}
+    for it in final_items:
+        k = topic_key(it)
+        topic_counts[k] = topic_counts.get(k, 0) + 1
+    hot_topics = sorted(topic_counts.items(), key=lambda kv: kv[1], reverse=True)[:8]
+    hot_readable = []
+    for k, c in hot_topics:
+        bucket, frag = k.split("|", 1)
+        hot_readable.append({"bucket": bucket, "fragment": frag, "count": c})
+
+    # Render
+    template = Template("""
+<!doctype html><html><head>
 <meta charset="utf-8">
 <title>LexWatch — Israel & International Law</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -149,18 +249,24 @@ a:hover{text-decoration:underline}
   <div class="small">{{ now }}</div>
 </div>
 
-<p class="small">All items filtered to Israel and international-law signals. Buckets: ICJ · ICC · Law of the Sea · Settlements · ISDS · AI & Intl Law.</p>
-
 <h2>Highlights</h2>
-{% if feed|length + blogs|length == 0 %}
-<div class="card">No items matched the filters today.</div>
+{% if final_count == 0 %}
+<div class="card">No items matched the filters for the last {{ recent_days }} days.</div>
 {% else %}
 <div class="card">
   <ul class="list">
-    <li>Total items: {{ feed|length + blogs|length }}</li>
-    <li>Feeds: {{ feed|length }} | Blogs: {{ blogs|length }}</li>
+    <li>Window: last {{ recent_days }} days</li>
+    <li>Total items after filters: {{ final_count }}</li>
+    <li>Ongoing-discussion threshold: {{ min_topic }}</li>
   </ul>
 </div>
+
+<h2>Hot Topics (last {{ recent_days }} days)</h2>
+{% for ht in hot_readable %}
+  <div class="card">
+    <strong>{{ ht.bucket }}</strong> — {{ ht.fragment }} <span class="badge">{{ ht.count }}</span>
+  </div>
+{% endfor %}
 {% endif %}
 
 <h2>Topic Buckets</h2>
@@ -196,12 +302,17 @@ Generated by GitHub Actions (daily, Asia/Jerusalem). Configure via <code>config.
 
     html = template.render(
         now=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-        feed=feed_f, blogs=blog_f, buckets=by_bucket, bios=bios
+        recent_days=recent_days,
+        min_topic=min_topic,
+        final_count=len(final_items),
+        hot_readable=hot_readable,
+        buckets=by_bucket,
+        bios=bios
     )
     os.makedirs("public", exist_ok=True)
     with open("public/index.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"Done. Items={len(feed_f)+len(blog_f)} → public/index.html")
+    print(f"Done. Items=", len(final_items), "→ public/index.html")
 
 if __name__ == "__main__":
     main()
