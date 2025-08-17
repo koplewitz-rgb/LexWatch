@@ -137,23 +137,24 @@ def main():
     track_terms   = list(set(cfg.get("track_terms", []) + cfg.get("ai_terms", [])))
     context_terms = cfg.get("context_terms", [])
     israel_terms  = cfg.get("israel_terms", ["Israel"])
-    min_ctx       = int(cfg.get("min_context_score", 3))  # STRONGER default
+    min_ctx       = int(cfg.get("min_context_score", 2))  # slightly looser default
     top_n         = int(cfg.get("report_top_n", 80))
     recent_days   = int(cfg.get("recent_days", 7))
     min_topic     = int(cfg.get("min_topic_mentions", 2))
     block         = set((d.strip().lower() for d in cfg.get("source_blocklist", [])))
 
+    # Fetch
     feed_items, blog_items = [], []
     for u in sources:
         feed_items += fetch_rss(u)
     for b in blogs:
         blog_items += fetch_rss(b)
 
-    # Initial filters
+    # 1) Base filters
     feed_f = apply_filters(feed_items, track_terms, context_terms, israel_terms, min_ctx)
     blog_f = apply_filters(blog_items, track_terms, context_terms, israel_terms, min_ctx)
 
-    # Recent only (≤ recent_days)
+    # 2) Recent window
     cutoff = datetime.utcnow() - timedelta(days=recent_days)
     def is_recent(it):
         try:
@@ -162,16 +163,15 @@ def main():
             return True  # allow undated
         except Exception:
             return True
-
     feed_f = [it for it in feed_f if is_recent(it)]
     blog_f = [it for it in blog_f if is_recent(it)]
 
-    # Block noisy domains
+    # 3) Block noisy domains
     if block:
         feed_f = [it for it in feed_f if it.get("domain","") not in block]
         blog_f = [it for it in blog_f if it.get("domain","") not in block]
 
-    # Dedupe (by normalized title + domain)
+    # 4) Dedupe
     seen = set()
     def dedupe(items):
         out = []
@@ -182,11 +182,10 @@ def main():
             seen.add(key)
             out.append(it)
         return out
-
     feed_f = dedupe(feed_f)
     blog_f = dedupe(blog_f)
 
-    # Ongoing discussions: require >= min_topic per topic_key across feeds+blogs
+    # 5) Ongoing discussions
     all_items = feed_f + blog_f
     for it in all_items:
         it["bucket"] = assign_bucket(it)
@@ -195,44 +194,33 @@ def main():
         k = topic_key(it)
         counts[k] = counts.get(k, 0) + 1
     ongoing = [it for it in all_items if counts[topic_key(it)] >= min_topic]
-    final_items = ongoing[: top_n]
-# ---- Fallback if nothing matched (widen the net) ----
-fallback_used = False
-if len(final_items) == 0:
-    fallback_used = True
-    # widen recency, loosen thresholds
-    fallback_recent_days = max(14, cfg.get("recent_days", 7))
-    cutoff_fb = datetime.utcnow() - timedelta(days=fallback_recent_days)
+    final_items = ongoing[: top_n]              # <-- define first
 
-    def is_recent_fb(it):
-        try:
-            if it.get("published_dt"):
-                return dateparser.parse(it["published_dt"]) >= cutoff_fb
-            return True
-        except Exception:
-            return True
-
-    # allow singletons (min_topic=1) and slightly looser context (min_ctx-1)
-    min_ctx_fb = max(1, int(cfg.get("min_context_score", 2)) - 1)
-    min_topic_fb = 1
-
-    # re-filter from the already filtered stage (feed_f/blog_f) but with newer rules
-    feed_fb = [it for it in feed_f if is_recent_fb(it)]
-    blog_fb = [it for it in blog_f if is_recent_fb(it)]
-    all_fb = feed_fb + blog_fb
-
-    # recount topics
-    counts_fb = {}
-    for it in all_fb:
-        k = topic_key(it)
-        counts_fb[k] = counts_fb.get(k, 0) + 1
-    ongoing_fb = [it for it in all_fb if counts_fb[topic_key(it)] >= min_topic_fb]
-
-    final_items = ongoing_fb[: top_n]
-
-    # expose fallback params for the template
-    recent_days = fallback_recent_days
-    min_topic = min_topic_fb
+    # 6) Fallback if empty
+    fallback_used = False
+    if len(final_items) == 0:
+        fallback_used = True
+        # widen recency and loosen thresholds a bit
+        fallback_recent_days = max(14, recent_days)
+        cutoff_fb = datetime.utcnow() - timedelta(days=fallback_recent_days)
+        def is_recent_fb(it):
+            try:
+                if it.get("published_dt"):
+                    return dateparser.parse(it["published_dt"]) >= cutoff_fb
+                return True
+            except Exception:
+                return True
+        feed_fb = [it for it in feed_f if is_recent_fb(it)]
+        blog_fb = [it for it in blog_f if is_recent_fb(it)]
+        all_fb = feed_fb + blog_fb
+        counts_fb = {}
+        for it in all_fb:
+            k = topic_key(it)
+            counts_fb[k] = counts_fb.get(k, 0) + 1
+        ongoing_fb = [it for it in all_fb if counts_fb[topic_key(it)] >= 1]  # allow singletons
+        final_items = ongoing_fb[: top_n]
+        recent_days = fallback_recent_days
+        min_topic = 1
 
     # People to Watch (from final items)
     names = set()
@@ -251,7 +239,7 @@ if len(final_items) == 0:
     for it in final_items:
         by_bucket.setdefault(it["bucket"], []).append(it)
 
-    # Hot Topics list
+    # Hot Topics
     topic_counts = {}
     for it in final_items:
         k = topic_key(it)
@@ -294,7 +282,7 @@ a:hover{text-decoration:underline}
 <div class="card"><strong>Fallback mode:</strong> showing a wider window and looser threshold (to surface near-misses).</div>
 {% endif %}
 <div class="card">
-
+  <ul class="list">
     <li>Window: last {{ recent_days }} days</li>
     <li>Total items after filters: {{ final_count }}</li>
     <li>Ongoing-discussion threshold: {{ min_topic }}</li>
@@ -341,20 +329,19 @@ Generated by GitHub Actions (daily, Asia/Jerusalem). Configure via <code>config.
 """)
 
     html = template.render(
-    now=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-    recent_days=recent_days,
-    min_topic=min_topic,
-    final_count=len(final_items),
-    hot_readable=hot_readable,
-    buckets=by_bucket,
-    bios=bios,
-    fallback_used=fallback_used
-)
-
+        now=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        recent_days=recent_days,
+        min_topic=min_topic,
+        final_count=len(final_items),
+        hot_readable=hot_readable,
+        buckets=by_bucket,
+        bios=bios,
+        fallback_used=fallback_used
+    )
     os.makedirs("public", exist_ok=True)
     with open("public/index.html", "w", encoding="utf-8") as f:
         f.write(html)
-    print(f"Done. Items=", len(final_items), "→ public/index.html")
+    print("Done. Items=", len(final_items), "→ public/index.html")
 
 if __name__ == "__main__":
     main()
