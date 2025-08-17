@@ -26,16 +26,44 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: python -m pip install --upgrade pip
-      - run: pip install -r requirements.txt
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Show what got installed (helps debug)
+          pip show feedparser requests PyYAML Jinja2 python-dateutil || true
 
-      # build.py writes to public/index.html (keep your build.py as-is)
-      - run: python build.py
+      - name: Sanity check
+        run: |
+          python - << 'PY'
+          import sys, os
+          print("python", sys.version)
+          print("cwd", os.getcwd())
+          print("files", os.listdir("."))
+          # verify imports
+          import yaml, feedparser, requests
+          from dateutil import parser as dp
+          from jinja2 import Template
+          # check config exists/valid
+          with open("config.yaml","r",encoding="utf-8") as f:
+              data = f.read()
+          print("config.yaml bytes:", len(data))
+          print("imports-ok")
+          PY
 
-      # Use the latest supported action for Pages artifacts:
+      - name: Build site (show full error)
+        run: |
+          set -xe
+          python -u build.py
+
+      - name: List output
+        if: always()
+        run: ls -R
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
+
 
   deploy:
     needs: build
