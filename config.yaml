@@ -1,27 +1,93 @@
-keywords:
+# --- LexWatch Pages Configuration (fixed) ---
+
+israel_terms:
+  - Israel
+  - Israeli
+  - "State of Israel"
+  - ישראל
+  - ישראלי
+  - "מדינת ישראל"
+  - إسرائيل
+  - إسرائيلي
+  - "دولة إسرائيل"
+  - West Bank
+  - Gaza
+  - Jerusalem
+  - Occupied Palestinian Territories
+  - OPT
+
+track_terms:
   - ICJ
-  - ICC Prosecutor
+  - "ICC Prosecutor"
   - UNCLOS
-  - Israel settlements
-  - investment arbitration
+  - "Israel settlements"
+  - "investment arbitration"
   - EEZ
-  - innocent passage
-  - genocide convention
-  - AI international law
+  - "innocent passage"
+  - "genocide convention"
+
+ai_terms:
+  - "artificial intelligence"
+  - AI
+  - "autonomous weapons"
+  - LAWS
+  - "AI governance"
+  - "Council of Europe AI Convention"
+  - "Article 36 weapons review"
+  - "cyber norms"
+  - "IHL and AI"
+  - "IHRL and AI"
+
+context_terms:
+  - "international law"
+  - "public international law"
+  - IHL
+  - IHRL
+  - treaty
+  - customary
+  - jurisdiction
+  - ICJ
+  - ICC
+  - UNCLOS
+  - EEZ
+  - "law of the sea"
+  - "genocide convention"
+  - "state responsibility"
+  - immunities
+  - "erga omnes"
+  - arbitration
+  - "investment arbitration"
+  - ICSID
+  - UNCITRAL
+
+min_context_score: 2
+
+sources:
+  - "https://news.google.com/rss/search?q=%22international%20law%22%20Israel"
+  - "https://news.google.com/rss/search?q=ICJ%20Israel"
+  - "https://news.google.com/rss/search?q=%22ICC%20Prosecutor%22%20Israel"
+  - "https://news.google.com/rss/search?q=UNCLOS%20Israel"
+  - "https://news.google.com/rss/search?q=EEZ%20Israel"
+  - "https://news.google.com/rss/search?q=%22innocent%20passage%22%20Israel"
+  - "https://news.google.com/rss/search?q=%22genocide%20convention%22%20Israel"
+  - "https://news.google.com/rss/search?q=%22investment%20arbitration%22%20Israel"
+  - "https://news.google.com/rss/search?q=site:icj-cij.org%20Israel"
+  - "https://news.google.com/rss/search?q=site:icc-cpi.int%20Israel"
+  - "https://news.google.com/rss/search?q=site:uncitral.un.org%20Israel"
+  - "https://news.google.com/rss/search?q=site:icsid.worldbank.org%20Israel"
 
 blogs:
-  - https://opiniojuris.org/feed/
-  - https://www.ejiltalk.org/feed/
-  - https://lieber.westpoint.edu/feed/
-  - https://www.asymmetrichaicut.com/feed/
-  - https://armedgroups.org/feed/
-  - https://www.articlesofwar.org/feed/
+  - "https://www.ejiltalk.org/feed/"
+  - "https://opiniojuris.org/feed/"
+  - "https://www.justsecurity.org/feed/"
+  - "https://www.lawfaremedia.org/rss.xml"
+  - "https://blogs.icrc.org/law-and-policy/feed/"
+  - "https://lieber.westpoint.edu/feed/"
+  - "https://asymmetrichaircut.com/feed/"
+  - "https://www.armedgroups-internationallaw.org/feed/"
 
-names:
-  - Aeyal Gross
-  - Yuval Shany
-  - Eyal Benvenisti
-  - Michael Sfard
-  - Malcolm Shaw
-  - Philippe Sands
-  - Omri Rachum-Twaig
+use_google_trends: false
+twitter_scan:
+  enabled: false
+enrich_people: true
+report_top_n: 80
